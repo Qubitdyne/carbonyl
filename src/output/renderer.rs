@@ -36,6 +36,10 @@ impl Renderer {
         self.painter.set_true_color(true)
     }
 
+    pub fn enable_sixel(&mut self, geometry: Size) {
+        self.painter.enable_sixel(geometry);
+    }
+
     pub fn keypress(&mut self, key: &Key) -> io::Result<NavigationAction> {
         let action = self.nav.keypress(key);
 
@@ -114,6 +118,7 @@ impl Renderer {
 
             previous.quadrant = current.quadrant;
             previous.grapheme = current.grapheme.clone();
+            previous.image = current.image;
 
             self.painter.paint(current)?;
         }
@@ -125,6 +130,8 @@ impl Renderer {
 
     /// Draw the background from a pixel array encoded in RGBA8888
     pub fn draw_background(&mut self, pixels: &[u8], pixels_size: Size, rect: Rect) {
+        self.painter.queue_sixel_background(pixels, pixels_size);
+
         let viewport = self.size.cast::<usize>();
 
         if pixels.len() < viewport.width * viewport.height * 8 * 4 {
@@ -169,6 +176,7 @@ impl Renderer {
                     pair(x + 1, y + 2),
                     pair(x + 0, y + 2),
                 );
+                cell.image = true;
 
                 x += 2;
             }
@@ -195,6 +203,7 @@ impl Renderer {
         self.draw(rect, |cell| {
             cell.grapheme = None;
             cell.quadrant = (color, color, color, color);
+            cell.image = false;
         })
     }
 
@@ -214,6 +223,7 @@ impl Renderer {
             let right = left + size.width;
 
             for (_, current) in self.cells[left..right].iter_mut() {
+                current.image = false;
                 draw(current)
             }
         }
@@ -273,6 +283,7 @@ impl Renderer {
                                     previous.color != next.color || previous.char != next.char
                                 }
                             } {
+                                cell.image = false;
                                 cell.grapheme = Some(Rc::new(next))
                             }
                         }

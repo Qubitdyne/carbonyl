@@ -1,8 +1,13 @@
 use std::io::{self, Stdout, Write};
 
-use crate::gfx::{Color, Point};
+use crate::gfx::{Color, Point, Size};
+use crate::utils::log;
 
-use super::{binarize_quandrant, Cell};
+use super::{
+    binarize_quandrant,
+    sixel::{Error as SixelError, Frame},
+    Cell,
+};
 
 pub struct Painter {
     output: Stdout,
@@ -13,6 +18,13 @@ pub struct Painter {
     foreground: Option<Color>,
     background_code: Option<u8>,
     foreground_code: Option<u8>,
+    sixel: Option<SixelState>,
+}
+
+struct SixelState {
+    configured: bool,
+    geometry: Size<u32>,
+    pending: Option<Frame>,
 }
 
 impl Painter {
@@ -25,6 +37,7 @@ impl Painter {
             foreground: None,
             background_code: None,
             foreground_code: None,
+            sixel: None,
             true_color: match std::env::var("COLORTERM").unwrap_or_default().as_str() {
                 "truecolor" | "24bit" => true,
                 _ => false,
@@ -40,8 +53,76 @@ impl Painter {
         self.true_color = true_color
     }
 
+    pub fn enable_sixel(&mut self, geometry: Size<u32>) {
+        self.sixel.get_or_insert_with(|| SixelState {
+            configured: false,
+            geometry,
+            pending: None,
+        });
+    }
+
+    pub fn queue_sixel_background(&mut self, pixels: &[u8], size: Size<u32>) {
+        if let Some(state) = self.sixel.as_mut() {
+            let exceeds_width = state.geometry.width != 0 && size.width > state.geometry.width;
+            let exceeds_height = state.geometry.height != 0 && size.height > state.geometry.height;
+
+            if exceeds_width || exceeds_height {
+                log::error!(
+                    "failed to encode sixel frame: viewport {size:?} exceeds terminal graphics geometry {:?}",
+                    state.geometry
+                );
+                state.pending = None;
+
+                return;
+            }
+
+            let expected = size.width as usize * size.height as usize * 4;
+
+            if pixels.len() < expected {
+                log::error!(
+                    "failed to encode sixel frame: unexpected buffer size (expected {expected}, actual {})",
+                    pixels.len()
+                );
+                state.pending = None;
+
+                return;
+            }
+
+            match Frame::from_viewport(pixels, size) {
+                Ok(frame) => state.pending = Some(frame),
+                Err(SixelError::InvalidSize(invalid)) => {
+                    log::error!("failed to encode sixel frame: viewport {invalid:?} is invalid");
+                    state.pending = None;
+                }
+                Err(SixelError::Encode(error)) => {
+                    log::error!("failed to encode sixel frame: {error}");
+                    state.pending = None;
+                }
+            }
+        }
+    }
+
+    fn sixel_enabled(&self) -> bool {
+        self.sixel.is_some()
+    }
+
     pub fn begin(&mut self) -> io::Result<()> {
-        write!(self.buffer, "\x1b[?25l\x1b[?12l")
+        write!(self.buffer, "\x1b[?25l\x1b[?12l")?;
+
+        if let Some(state) = self.sixel.as_mut() {
+            if !state.configured {
+                write!(self.buffer, "\x1b[?80l")?;
+                state.configured = true;
+            }
+
+            if let Some(frame) = state.pending.take() {
+                write!(self.buffer, "\x1b[H")?;
+                self.buffer.extend_from_slice(&frame.bytes);
+                write!(self.buffer, "\x1b[H")?;
+            }
+        }
+
+        Ok(())
     }
 
     pub fn end(&mut self, cursor: Option<Point>) -> io::Result<()> {
@@ -67,7 +148,12 @@ impl Painter {
             cursor,
             quadrant,
             ref grapheme,
+            image,
         } = cell;
+
+        if self.sixel_enabled() && grapheme.is_none() && image {
+            return Ok(());
+        }
 
         let (char, background, foreground, width) = if let Some(grapheme) = grapheme {
             if grapheme.index > 0 {
