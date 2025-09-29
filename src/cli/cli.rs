@@ -9,6 +9,7 @@ pub struct CommandLine {
     pub zoom: f32,
     pub debug: bool,
     pub bitmap: bool,
+    pub sixel_only: bool,
     pub program: CommandLineProgram,
     pub shell_mode: bool,
 }
@@ -16,6 +17,8 @@ pub struct CommandLine {
 pub enum EnvVar {
     Debug,
     Bitmap,
+    SixelOnly,
+    LegacyText,
     ShellMode,
 }
 
@@ -24,6 +27,8 @@ impl EnvVar {
         match self {
             EnvVar::Debug => "CARBONYL_ENV_DEBUG",
             EnvVar::Bitmap => "CARBONYL_ENV_BITMAP",
+            EnvVar::SixelOnly => "CARBONYL_ENV_SIXEL_ONLY",
+            EnvVar::LegacyText => "CARBONYL_ENV_LEGACY_TEXT",
             EnvVar::ShellMode => "CARBONYL_ENV_SHELL_MODE",
         }
     }
@@ -41,6 +46,7 @@ impl CommandLine {
         let mut zoom = 1.0;
         let mut debug = false;
         let mut bitmap = false;
+        let mut sixel_only = true;
         let mut shell_mode = false;
         let mut program = CommandLineProgram::Main;
         let args = env::args().skip(1).collect::<Vec<String>>();
@@ -77,6 +83,11 @@ impl CommandLine {
                 "-z" | "--zoom" => set_f32!(zoom = zoom / 100.0),
                 "-d" | "--debug" => set!(debug, Debug),
                 "-b" | "--bitmap" => set!(bitmap, Bitmap),
+                "--sixel-only" => set!(sixel_only, SixelOnly),
+                "--legacy-text" => {
+                    sixel_only = false;
+                    env::set_var(EnvVar::LegacyText, "1");
+                }
 
                 "-h" | "--help" => program = CommandLineProgram::Help,
                 "-v" | "--version" => program = CommandLineProgram::Version,
@@ -92,6 +103,12 @@ impl CommandLine {
             bitmap = true;
         }
 
+        if env::var(EnvVar::LegacyText).is_ok() {
+            sixel_only = false;
+        } else if env::var(EnvVar::SixelOnly).is_ok() {
+            sixel_only = true;
+        }
+
         if env::var(EnvVar::ShellMode).is_ok() {
             shell_mode = true;
         }
@@ -102,6 +119,7 @@ impl CommandLine {
             zoom,
             debug,
             bitmap,
+            sixel_only,
             program,
             shell_mode,
         }

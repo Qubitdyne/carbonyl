@@ -185,14 +185,20 @@ pub extern "C" fn carbonyl_renderer_start(bridge: RendererPtr) {
 pub extern "C" fn carbonyl_renderer_resize(bridge: RendererPtr) {
     let bridge = unsafe { bridge.as_ref() };
     let mut bridge = bridge.unwrap().lock().unwrap();
+    let sixel_only = bridge.cmd.sixel_only;
     let window = bridge.window.update();
-    let cells = window.cells.clone();
+    let cells = window.cells;
+    let geometry = sixel_only.then_some(window.browser);
 
     log::debug!("resizing renderer, terminal window: {:?}", window);
 
-    bridge
-        .renderer
-        .render(move |renderer| renderer.set_size(cells));
+    bridge.renderer.render(move |renderer| {
+        renderer.set_size(cells);
+
+        if let Some(geometry) = geometry {
+            renderer.update_sixel_geometry(geometry);
+        }
+    });
 }
 
 #[no_mangle]
@@ -411,8 +417,16 @@ pub extern "C" fn carbonyl_renderer_listen(bridge: RendererPtr, delegate: *mut B
                         Terminal(terminal) => match terminal {
                             TerminalEvent::Name(name) => log::debug!("terminal name: {name}"),
                             TerminalEvent::TrueColorSupported => renderer.enable_true_color(),
-                            TerminalEvent::SixelSupported { width, height } => {
-                                renderer.enable_sixel(Size::new(width, height))
+                            TerminalEvent::SixelSupported { .. } => {
+                                let (sixel_only, geometry) = {
+                                    let bridge = bridge.lock().unwrap();
+
+                                    (bridge.cmd.sixel_only, bridge.window.browser)
+                                };
+
+                                if sixel_only {
+                                    renderer.enable_sixel(geometry);
+                                }
                             }
                         },
                     }
