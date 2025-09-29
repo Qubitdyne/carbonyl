@@ -130,7 +130,7 @@ impl Renderer {
 
     /// Draw the background from a pixel array encoded in RGBA8888
     pub fn draw_background(&mut self, pixels: &[u8], pixels_size: Size, rect: Rect) {
-        self.painter.queue_sixel_background(pixels, pixels_size);
+        let uses_sixel = self.painter.queue_sixel_background(pixels, pixels_size);
 
         let viewport = self.size.cast::<usize>();
 
@@ -170,12 +170,22 @@ impl Renderer {
             let (mut x, y) = (left * 2, y * 4);
 
             for (_, cell) in &mut self.cells[start..end] {
-                cell.quadrant = (
-                    pair(x + 0, y + 0),
-                    pair(x + 1, y + 0),
-                    pair(x + 1, y + 2),
-                    pair(x + 0, y + 2),
-                );
+                if uses_sixel {
+                    cell.quadrant = (
+                        Color::black(),
+                        Color::black(),
+                        Color::black(),
+                        Color::black(),
+                    );
+                    cell.grapheme = None;
+                } else {
+                    cell.quadrant = (
+                        pair(x + 0, y + 0),
+                        pair(x + 1, y + 0),
+                        pair(x + 1, y + 2),
+                        pair(x + 0, y + 2),
+                    );
+                }
                 cell.image = true;
 
                 x += 2;
