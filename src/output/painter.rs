@@ -1,4 +1,7 @@
-use std::io::{self, Stdout, Write};
+use std::{
+    env,
+    io::{self, Stdout, Write},
+};
 
 use crate::gfx::{Color, Point, Size};
 use crate::utils::log;
@@ -25,6 +28,7 @@ struct SixelState {
     configured: bool,
     geometry: Size<u32>,
     pending: Option<Frame>,
+    scrolling: bool,
 }
 
 impl Painter {
@@ -58,6 +62,9 @@ impl Painter {
             configured: false,
             geometry,
             pending: None,
+            scrolling: env::var("CARBONYL_SIXEL_SCROLL")
+                .map(|value| matches!(value.as_str(), "1" | "true" | "on"))
+                .unwrap_or(false),
         });
     }
 
@@ -111,7 +118,11 @@ impl Painter {
 
         if let Some(state) = self.sixel.as_mut() {
             if !state.configured {
-                write!(self.buffer, "\x1b[?80l")?;
+                if state.scrolling {
+                    write!(self.buffer, "\x1b[?80l")?;
+                } else {
+                    write!(self.buffer, "\x1b[?80h")?;
+                }
                 state.configured = true;
             }
 

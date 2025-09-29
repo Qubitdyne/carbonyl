@@ -87,7 +87,7 @@ impl TTY {
             write!(out, "\x1b[?{}{}", sequence, if enable { "h" } else { "l" })?;
         }
 
-        // Set the current foreground color to black
+        // Set the current background color to black
         write!(out, "\x1b[48;2;0;0;0m")?;
         // Query current foreground color to for true-color support detection
         write!(out, "\x1bP$qm\x1b\\")?;
