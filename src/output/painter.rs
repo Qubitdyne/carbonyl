@@ -76,7 +76,7 @@ impl Painter {
                         _ => None,
                     }
                 })
-                .unwrap_or(true);
+                .unwrap_or(false);
 
             SixelState {
                 configured: false,
@@ -157,9 +157,7 @@ impl Painter {
             }
 
             if let Some(frame) = state.pending.take() {
-                if self.sixel_only {
-                    write!(self.buffer, "\x1b[H\x1b[2J")?;
-                }
+                // Reposition cursor without clearing the entire screen.
                 write!(self.buffer, "\x1b[H")?;
                 self.buffer.extend_from_slice(&frame.bytes);
                 write!(self.buffer, "\x1b[H")?;
