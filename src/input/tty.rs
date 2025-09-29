@@ -93,6 +93,8 @@ impl TTY {
         write!(out, "\x1bP$qm\x1b\\")?;
         // Query current terminal name
         write!(out, "\x1bP+q544e\x1b\\")?;
+        // Query graphics capability (XTSMGRAPHICS)
+        write!(out, "\x1b[?2;1;0S")?;
 
         out.flush()
     }

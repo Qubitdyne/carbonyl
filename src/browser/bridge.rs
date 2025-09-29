@@ -411,6 +411,9 @@ pub extern "C" fn carbonyl_renderer_listen(bridge: RendererPtr, delegate: *mut B
                         Terminal(terminal) => match terminal {
                             TerminalEvent::Name(name) => log::debug!("terminal name: {name}"),
                             TerminalEvent::TrueColorSupported => renderer.enable_true_color(),
+                            TerminalEvent::SixelSupported { width, height } => {
+                                renderer.enable_sixel(Size::new(width, height))
+                            }
                         },
                     }
                 }
