@@ -41,7 +41,7 @@ impl Window {
     }
 
     pub fn update(&mut self) -> &Self {
-        let (mut term, mut cell) = unsafe {
+        let (mut term, cell) = unsafe {
             let mut ptr = MaybeUninit::<libc::winsize>::uninit();
 
             if libc::ioctl(libc::STDOUT_FILENO, libc::TIOCGWINSZ, ptr.as_mut_ptr()) == 0 {
@@ -79,7 +79,6 @@ impl Window {
         }
 
         let zoom = self.cmd.zoom.max(0.01);
-        let cells = Size::new(term.width.max(1), term.height.max(2) - 1);
         let mut cell_pixels =
             if term.width > 0 && term.height > 0 && cell.width > 0 && cell.height > 0 {
                 Size::new(
