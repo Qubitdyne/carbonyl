@@ -114,11 +114,12 @@ impl Window {
         self.scale = Size::new(2.0, 4.0) / self.dpi;
         // Keep some space for the UI
         self.cells = Size::new(term.width.max(1), term.height.max(2) - 1).cast();
-        self.browser = self.cells.cast::<f32>().mul(self.scale).ceil().cast();
         self.graphics_px = Size::new(
             (self.cells.width as f32 * cell_pixels.width).round() as u32,
             (self.cells.height as f32 * cell_pixels.height).round() as u32,
         );
+        // Request Chromium to render at the full terminal pixel size so no scaling is needed
+        self.browser = self.graphics_px;
 
         self
     }
