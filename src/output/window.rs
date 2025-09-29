@@ -22,6 +22,8 @@ pub struct Window {
     pub browser: Size,
     /// Full terminal pixel geometry for graphics output
     pub graphics_px: Size,
+    /// Device scale factor used by Chromium (integer preferred)
+    pub dsf: f32,
     /// Command line arguments
     pub cmd: CommandLine,
 }
@@ -35,6 +37,7 @@ impl Window {
             cells: (0, 0).into(),
             browser: (0, 0).into(),
             graphics_px: (0, 0).into(),
+            dsf: 1.0,
             cmd: CommandLine::parse(),
         };
 
@@ -81,7 +84,6 @@ impl Window {
             term.height = rows;
         }
 
-        let zoom = self.cmd.zoom.max(0.01);
         let mut cell_pixels =
             if term.width > 0 && term.height > 0 && cell.width > 0 && cell.height > 0 {
                 Size::new(
@@ -105,21 +107,31 @@ impl Window {
             }
         }
         // Normalize the cells dimensions for an aspect ratio of 1:2
-        let cell_width = (cell_pixels.width + cell_pixels.height / 2.0) / 2.0;
-
-        let dpi = 2.0 / cell_width * zoom;
-        // Round DPI to 4 decimals for stable viewport computations
-        self.dpi = (dpi * 10000.0).round() / 10000.0;
-        // A virtual cell should contain a 2x4 pixel quadrant
-        self.scale = Size::new(2.0, 4.0) / self.dpi;
+        self.scale = cell_pixels;
         // Keep some space for the UI
         self.cells = Size::new(term.width.max(1), term.height.max(2) - 1).cast();
         self.graphics_px = Size::new(
             (self.cells.width as f32 * cell_pixels.width).round() as u32,
             (self.cells.height as f32 * cell_pixels.height).round() as u32,
         );
-        // Request Chromium to render at the full terminal pixel size so no scaling is needed
-        self.browser = self.graphics_px;
+
+        // Choose an integer device scale factor (DSF) to avoid fractional raster scaling.
+        let mut dsf = if cell_pixels.height >= 18.0 { 2.0 } else { 1.0 };
+        if let Ok(value) = std::env::var("CARBONYL_DSF") {
+            match value.trim() {
+                "1" => dsf = 1.0,
+                "2" => dsf = 2.0,
+                "3" => dsf = 3.0,
+                _ => {}
+            }
+        }
+        self.dsf = dsf;
+        self.dpi = self.dsf;
+
+        self.browser = Size::new(
+            (self.graphics_px.width as f32 / self.dsf).round() as u32,
+            (self.graphics_px.height as f32 / self.dsf).round() as u32,
+        );
 
         self
     }

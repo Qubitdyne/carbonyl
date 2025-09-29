@@ -5,6 +5,7 @@ use std::{
 
 use crate::gfx::{Color, Point, Size};
 use crate::utils::log;
+use sixel_bytes::DiffusionMethod;
 
 use super::{
     binarize_quandrant,
@@ -30,6 +31,7 @@ struct SixelState {
     geometry: Size<u32>,
     pending: Option<Frame>,
     scrolling: bool,
+    dither: DiffusionMethod,
 }
 
 impl Painter {
@@ -78,11 +80,26 @@ impl Painter {
                 })
                 .unwrap_or(false);
 
+            let dither = match env::var("CARBONYL_SIXEL_DITHER")
+                .unwrap_or_else(|_| "none".into())
+                .to_ascii_lowercase()
+                .as_str()
+            {
+                "auto" => DiffusionMethod::Auto,
+                "fs" | "floyd-steinberg" => DiffusionMethod::FS,
+                "atkinson" => DiffusionMethod::Atkinson,
+                "stucki" => DiffusionMethod::Stucki,
+                "burkes" => DiffusionMethod::Burkes,
+                "jajuni" | "jarvis" => DiffusionMethod::JaJuNi,
+                _ => DiffusionMethod::None,
+            };
+
             SixelState {
                 configured: false,
                 geometry,
                 pending: None,
                 scrolling,
+                dither,
             }
         });
 
@@ -118,7 +135,16 @@ impl Painter {
             size
         };
 
-        match Frame::from_viewport_scaled(pixels, size, target) {
+        log::debug!(
+            "sixel encode: src={}x{} target={}x{} dither={:?}",
+            size.width,
+            size.height,
+            target.width,
+            target.height,
+            state.dither
+        );
+
+        match Frame::from_viewport_scaled(pixels, size, target, state.dither) {
             Ok(frame) => {
                 state.pending = Some(frame);
 
