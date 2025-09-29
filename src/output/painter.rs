@@ -58,53 +58,76 @@ impl Painter {
     }
 
     pub fn enable_sixel(&mut self, geometry: Size<u32>) {
-        self.sixel.get_or_insert_with(|| SixelState {
-            configured: false,
-            geometry,
-            pending: None,
-            scrolling: env::var("CARBONYL_SIXEL_SCROLL")
-                .map(|value| matches!(value.as_str(), "1" | "true" | "on"))
-                .unwrap_or(false),
+        self.sixel.get_or_insert_with(|| {
+            let scrolling = env::var("CARBONYL_SIXEL_SCROLL")
+                .ok()
+                .and_then(|value| {
+                    let normalized = value.trim().to_ascii_lowercase();
+
+                    match normalized.as_str() {
+                        "1" | "true" | "on" | "yes" => Some(true),
+                        "0" | "false" | "off" | "no" => Some(false),
+                        _ => None,
+                    }
+                })
+                .unwrap_or(true);
+
+            SixelState {
+                configured: false,
+                geometry,
+                pending: None,
+                scrolling,
+            }
         });
     }
 
-    pub fn queue_sixel_background(&mut self, pixels: &[u8], size: Size<u32>) {
-        if let Some(state) = self.sixel.as_mut() {
-            let exceeds_width = state.geometry.width != 0 && size.width > state.geometry.width;
-            let exceeds_height = state.geometry.height != 0 && size.height > state.geometry.height;
+    pub fn queue_sixel_background(&mut self, pixels: &[u8], size: Size<u32>) -> bool {
+        let Some(state) = self.sixel.as_mut() else {
+            return false;
+        };
 
-            if exceeds_width || exceeds_height {
-                log::error!(
-                    "failed to encode sixel frame: viewport {size:?} exceeds terminal graphics geometry {:?}",
-                    state.geometry
-                );
+        let exceeds_width = state.geometry.width != 0 && size.width > state.geometry.width;
+        let exceeds_height = state.geometry.height != 0 && size.height > state.geometry.height;
+
+        if exceeds_width || exceeds_height {
+            log::error!(
+                "failed to encode sixel frame: viewport {size:?} exceeds terminal graphics geometry {:?}",
+                state.geometry
+            );
+            state.pending = None;
+
+            return false;
+        }
+
+        let expected = size.width as usize * size.height as usize * 4;
+
+        if pixels.len() < expected {
+            log::error!(
+                "failed to encode sixel frame: unexpected buffer size (expected {expected}, actual {})",
+                pixels.len()
+            );
+            state.pending = None;
+
+            return false;
+        }
+
+        match Frame::from_viewport(pixels, size) {
+            Ok(frame) => {
+                state.pending = Some(frame);
+
+                true
+            }
+            Err(SixelError::InvalidSize(invalid)) => {
+                log::error!("failed to encode sixel frame: viewport {invalid:?} is invalid");
                 state.pending = None;
 
-                return;
+                false
             }
-
-            let expected = size.width as usize * size.height as usize * 4;
-
-            if pixels.len() < expected {
-                log::error!(
-                    "failed to encode sixel frame: unexpected buffer size (expected {expected}, actual {})",
-                    pixels.len()
-                );
+            Err(SixelError::Encode(error)) => {
+                log::error!("failed to encode sixel frame: {error}");
                 state.pending = None;
 
-                return;
-            }
-
-            match Frame::from_viewport(pixels, size) {
-                Ok(frame) => state.pending = Some(frame),
-                Err(SixelError::InvalidSize(invalid)) => {
-                    log::error!("failed to encode sixel frame: viewport {invalid:?} is invalid");
-                    state.pending = None;
-                }
-                Err(SixelError::Encode(error)) => {
-                    log::error!("failed to encode sixel frame: {error}");
-                    state.pending = None;
-                }
+                false
             }
         }
     }
@@ -119,9 +142,9 @@ impl Painter {
         if let Some(state) = self.sixel.as_mut() {
             if !state.configured {
                 if state.scrolling {
-                    write!(self.buffer, "\x1b[?80l")?;
-                } else {
                     write!(self.buffer, "\x1b[?80h")?;
+                } else {
+                    write!(self.buffer, "\x1b[?80l")?;
                 }
                 state.configured = true;
             }
