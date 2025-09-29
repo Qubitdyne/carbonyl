@@ -29,7 +29,7 @@ impl Frame {
             size.width as i32,
             size.height as i32,
             sixel_bytes::PixelFormat::BGRA8888,
-            sixel_bytes::DiffusionMethod::Ordered,
+            sixel_bytes::DiffusionMethod::Auto,
         )
         .map_err(Error::from)?
         .into_bytes();
