@@ -100,19 +100,6 @@ impl Painter {
             return false;
         };
 
-        let exceeds_width = state.geometry.width != 0 && size.width > state.geometry.width;
-        let exceeds_height = state.geometry.height != 0 && size.height > state.geometry.height;
-
-        if exceeds_width || exceeds_height {
-            log::error!(
-                "failed to encode sixel frame: viewport {size:?} exceeds terminal graphics geometry {:?}",
-                state.geometry
-            );
-            state.pending = None;
-
-            return false;
-        }
-
         let expected = size.width as usize * size.height as usize * 4;
 
         if pixels.len() < expected {
@@ -125,7 +112,13 @@ impl Painter {
             return false;
         }
 
-        match Frame::from_viewport(pixels, size) {
+        let target = if state.geometry.width > 0 && state.geometry.height > 0 {
+            state.geometry
+        } else {
+            size
+        };
+
+        match Frame::from_viewport_scaled(pixels, size, target) {
             Ok(frame) => {
                 state.pending = Some(frame);
 
@@ -166,9 +159,8 @@ impl Painter {
             if let Some(frame) = state.pending.take() {
                 if self.sixel_only {
                     write!(self.buffer, "\x1b[H\x1b[2J")?;
-                } else {
-                    write!(self.buffer, "\x1b[H")?;
                 }
+                write!(self.buffer, "\x1b[H")?;
                 self.buffer.extend_from_slice(&frame.bytes);
                 write!(self.buffer, "\x1b[H")?;
             }
