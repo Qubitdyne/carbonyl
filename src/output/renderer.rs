@@ -23,11 +23,14 @@ pub struct Renderer {
 }
 
 impl Renderer {
-    pub fn new() -> Renderer {
+    pub fn new(sixel_only: bool) -> Renderer {
+        let mut painter = Painter::new();
+        painter.set_sixel_only(sixel_only);
+
         Renderer {
             nav: Navigation::new(),
             cells: Vec::with_capacity(0),
-            painter: Painter::new(),
+            painter,
             size: Size::new(0, 0),
         }
     }
@@ -38,6 +41,10 @@ impl Renderer {
 
     pub fn enable_sixel(&mut self, geometry: Size) {
         self.painter.enable_sixel(geometry);
+    }
+
+    pub fn update_sixel_geometry(&mut self, geometry: Size) {
+        self.painter.update_sixel_geometry(geometry);
     }
 
     pub fn keypress(&mut self, key: &Key) -> io::Result<NavigationAction> {

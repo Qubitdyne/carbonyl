@@ -22,6 +22,7 @@ pub struct Painter {
     background_code: Option<u8>,
     foreground_code: Option<u8>,
     sixel: Option<SixelState>,
+    sixel_only: bool,
 }
 
 struct SixelState {
@@ -46,6 +47,7 @@ impl Painter {
                 "truecolor" | "24bit" => true,
                 _ => false,
             },
+            sixel_only: false,
         }
     }
 
@@ -57,8 +59,12 @@ impl Painter {
         self.true_color = true_color
     }
 
+    pub fn set_sixel_only(&mut self, sixel_only: bool) {
+        self.sixel_only = sixel_only;
+    }
+
     pub fn enable_sixel(&mut self, geometry: Size<u32>) {
-        self.sixel.get_or_insert_with(|| {
+        let state = self.sixel.get_or_insert_with(|| {
             let scrolling = env::var("CARBONYL_SIXEL_SCROLL")
                 .ok()
                 .and_then(|value| {
@@ -79,6 +85,14 @@ impl Painter {
                 scrolling,
             }
         });
+
+        state.geometry = geometry;
+    }
+
+    pub fn update_sixel_geometry(&mut self, geometry: Size<u32>) {
+        if let Some(state) = self.sixel.as_mut() {
+            state.geometry = geometry;
+        }
     }
 
     pub fn queue_sixel_background(&mut self, pixels: &[u8], size: Size<u32>) -> bool {
@@ -150,7 +164,11 @@ impl Painter {
             }
 
             if let Some(frame) = state.pending.take() {
-                write!(self.buffer, "\x1b[H")?;
+                if self.sixel_only {
+                    write!(self.buffer, "\x1b[H\x1b[2J")?;
+                } else {
+                    write!(self.buffer, "\x1b[H")?;
+                }
                 self.buffer.extend_from_slice(&frame.bytes);
                 write!(self.buffer, "\x1b[H")?;
             }
@@ -167,6 +185,8 @@ impl Painter {
                 cursor.y + 1,
                 cursor.x + 1
             )?;
+        } else {
+            write!(self.buffer, "\x1b[?25h\x1b[?12h")?;
         }
 
         self.output.write(self.buffer.as_slice())?;
@@ -184,6 +204,10 @@ impl Painter {
             ref grapheme,
             image,
         } = cell;
+
+        if self.sixel_only && self.sixel_enabled() {
+            return Ok(());
+        }
 
         if self.sixel_enabled() && grapheme.is_none() && image {
             return Ok(());
