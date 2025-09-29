@@ -44,7 +44,7 @@ impl CommandLine {
         let mut zoom = 1.0;
         let mut debug = false;
         let mut bitmap = false;
-        let mut sixel_only = false;
+        let mut sixel_only = true;
         let mut shell_mode = false;
         let mut program = CommandLineProgram::Main;
         let args = env::args().skip(1).collect::<Vec<String>>();
@@ -82,6 +82,11 @@ impl CommandLine {
                 "-d" | "--debug" => set!(debug, Debug),
                 "-b" | "--bitmap" => set!(bitmap, Bitmap),
                 "--sixel-only" => set!(sixel_only, SixelOnly),
+                "--legacy-text" => {
+                    sixel_only = false;
+
+                    env::set_var(EnvVar::SixelOnly, "0");
+                }
 
                 "-h" | "--help" => program = CommandLineProgram::Help,
                 "-v" | "--version" => program = CommandLineProgram::Version,
@@ -97,9 +102,13 @@ impl CommandLine {
             bitmap = true;
         }
 
-        if env::var(EnvVar::SixelOnly).is_ok() {
-            sixel_only = true;
+        if let Ok(value) = env::var(EnvVar::SixelOnly) {
+            let normalized = value.trim().to_ascii_lowercase();
+
+            sixel_only = !matches!(normalized.as_str(), "0" | "false" | "off" | "no");
         }
+
+        env::set_var(EnvVar::SixelOnly, if sixel_only { "1" } else { "0" });
 
         if env::var(EnvVar::ShellMode).is_ok() {
             shell_mode = true;
