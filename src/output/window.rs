@@ -20,6 +20,8 @@ pub struct Window {
     pub cells: Size,
     /// Size of the browser window in pixels
     pub browser: Size,
+    /// Full terminal pixel geometry for graphics output
+    pub graphics_px: Size,
     /// Command line arguments
     pub cmd: CommandLine,
 }
@@ -32,6 +34,7 @@ impl Window {
             scale: (0.0, 0.0).into(),
             cells: (0, 0).into(),
             browser: (0, 0).into(),
+            graphics_px: (0, 0).into(),
             cmd: CommandLine::parse(),
         };
 
@@ -90,7 +93,16 @@ impl Window {
             };
 
         if cell_pixels.width <= 0.0 || cell_pixels.height <= 0.0 {
-            cell_pixels = query_cell_geometry().unwrap_or(Size::new(8.0, 16.0));
+            if let Some(win_px) = query_window_pixels() {
+                cell_pixels = Size::new(
+                    win_px.width / term.width.max(1) as f32,
+                    win_px.height / term.height.max(1) as f32,
+                );
+            }
+
+            if cell_pixels.width <= 0.0 || cell_pixels.height <= 0.0 {
+                cell_pixels = query_cell_geometry().unwrap_or(Size::new(8.0, 16.0));
+            }
         }
         // Normalize the cells dimensions for an aspect ratio of 1:2
         let cell_width = (cell_pixels.width + cell_pixels.height / 2.0) / 2.0;
@@ -103,6 +115,10 @@ impl Window {
         // Keep some space for the UI
         self.cells = Size::new(term.width.max(1), term.height.max(2) - 1).cast();
         self.browser = self.cells.cast::<f32>().mul(self.scale).ceil().cast();
+        self.graphics_px = Size::new(
+            (self.cells.width as f32 * cell_pixels.width).round() as u32,
+            (self.cells.height as f32 * cell_pixels.height).round() as u32,
+        );
 
         self
     }
@@ -195,6 +211,38 @@ fn query_cell_geometry() -> Option<Size<f32>> {
 
     let response = std::str::from_utf8(&buffer[..length]).ok()?;
     let start = response.rfind("\u{1b}[6;")?;
+    let rest = &response[start + 3..];
+    let end = rest.find('t')?;
+    let mut parts = rest[..end].split(';');
+    let height = parts.next()?.parse::<f32>().ok()?;
+    let width = parts.next()?.parse::<f32>().ok()?;
+
+    if width <= 0.0 || height <= 0.0 {
+        return None;
+    }
+
+    Some(Size::new(width, height))
+}
+
+fn query_window_pixels() -> Option<Size<f32>> {
+    let mut tty = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open("/dev/tty")
+        .ok()?;
+
+    tty.write_all(b"\x1b[14t").ok()?;
+    tty.flush().ok()?;
+
+    let mut buf = [0u8; 128];
+    let n = tty.read(&mut buf).ok()?;
+
+    if n == 0 {
+        return None;
+    }
+
+    let response = std::str::from_utf8(&buf[..n]).ok()?;
+    let start = response.rfind("\u{1b}[4;")?;
     let rest = &response[start + 3..];
     let end = rest.find('t')?;
     let mut parts = rest[..end].split(';');

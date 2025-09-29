@@ -9,6 +9,7 @@ unicode-width = "0.1.10"
 unicode-segmentation = "1.10.0"
 chrono = "0.4.23"
 sixel-bytes = "0.2"
+fast_image_resize = { version = "5", features = ["rayon"] }
 
 [lib]
 name = "carbonyl"
