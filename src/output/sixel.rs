@@ -1,5 +1,6 @@
 use crate::gfx::Size;
 use fast_image_resize::{images::Image, FilterType, PixelType, ResizeAlg, ResizeOptions, Resizer};
+use sixel_bytes::{self, DiffusionMethod, PixelFormat};
 
 #[derive(Clone, Debug)]
 pub struct Frame {
@@ -19,7 +20,7 @@ impl From<sixel_bytes::SixelError> for Error {
 }
 
 impl Frame {
-    fn encode_rgba(pixels: &[u8], size: Size<u32>) -> Result<Self, Error> {
+    fn encode_rgba(pixels: &[u8], size: Size<u32>, method: DiffusionMethod) -> Result<Self, Error> {
         if size.width == 0 || size.height == 0 {
             return Err(Error::InvalidSize(size));
         }
@@ -28,8 +29,8 @@ impl Frame {
             pixels,
             size.width as i32,
             size.height as i32,
-            sixel_bytes::PixelFormat::BGRA8888,
-            sixel_bytes::DiffusionMethod::Auto,
+            PixelFormat::BGRA8888,
+            method,
         )
         .map_err(Error::from)?
         .into_bytes();
@@ -41,13 +42,14 @@ impl Frame {
         pixels: &[u8],
         src_size: Size<u32>,
         target: Size<u32>,
+        method: DiffusionMethod,
     ) -> Result<Self, Error> {
         if target.width == 0 || target.height == 0 || src_size.width == 0 || src_size.height == 0 {
             return Err(Error::InvalidSize(target));
         }
 
         if src_size == target {
-            return Self::encode_rgba(pixels, src_size);
+            return Self::encode_rgba(pixels, src_size, method);
         }
 
         let src = Image::from_vec_u8(
@@ -66,6 +68,6 @@ impl Frame {
             .map_err(|_| Error::InvalidSize(target))?;
         let buffer = dst.into_vec();
 
-        Self::encode_rgba(&buffer, target)
+        Self::encode_rgba(&buffer, target, method)
     }
 }
