@@ -8,6 +8,10 @@ use crate::cli::CommandLine;
 
 use super::{FrameSync, Renderer};
 
+extern "C" {
+    fn carbonyl_set_default_zoom(factor: f32);
+}
+
 /// Control a rendering thread that lazily starts.
 /// This allows the `Bridge` struct to be used in places
 /// where we do not expected the rendering thread to start.
@@ -60,6 +64,9 @@ impl RenderThread {
         let cmd = CommandLine::parse();
         let mut sync = FrameSync::new(cmd.fps);
         let mut renderer = Renderer::new(cmd.sixel_only);
+        unsafe {
+            carbonyl_set_default_zoom(cmd.zoom.max(0.01));
+        }
         let mut needs_render = false;
 
         loop {

@@ -81,7 +81,7 @@ impl Painter {
                 .unwrap_or(false);
 
             let dither = match env::var("CARBONYL_SIXEL_DITHER")
-                .unwrap_or_else(|_| "none".into())
+                .unwrap_or_else(|_| "fs".into())
                 .to_ascii_lowercase()
                 .as_str()
             {
