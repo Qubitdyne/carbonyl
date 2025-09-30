@@ -24,7 +24,7 @@ private:
   friend class Renderer;
 
   static void Resize();
-  static void Configure(float dpi, bool bitmap_mode);
+  static void Configure(float dpi);
 };
 
 }

@@ -85,8 +85,8 @@ void Bridge::SetWebContents(content::WebContents* web_contents) {
     Bridge::SetDefaultZoom(default_zoom_factor_);
 }
 
-void Bridge::Configure(float dpi, bool bitmap_mode) {
-    bridge::SetBitmapMode(bitmap_mode);
+void Bridge::Configure(float dpi) {
+    bridge::SetBitmapMode(false);
     Bridge::SetDeviceScaleFactor(dpi);
 }
 

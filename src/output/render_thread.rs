@@ -59,7 +59,7 @@ impl RenderThread {
     fn boot(rx: Receiver<Message>) {
         let cmd = CommandLine::parse();
         let mut sync = FrameSync::new(cmd.fps);
-        let mut renderer = Renderer::new(cmd.sixel_only);
+        let mut renderer = Renderer::new();
         browser::set_default_zoom(cmd.zoom.max(0.01));
         let mut needs_render = false;
 

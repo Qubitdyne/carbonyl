@@ -192,12 +192,6 @@ fn main() -> io::Result<Option<i32>> {
     let mut terminal = input::Terminal::setup();
     let mut command = Command::new(env::current_exe()?);
 
-    if !cmd.bitmap {
-        command
-            .arg("--disable-threaded-scrolling")
-            .arg("--disable-threaded-animation");
-    }
-
     let output = command
         .args(cmd.args)
         .env(EnvVar::ShellMode, "1")
@@ -222,11 +216,6 @@ pub extern "C" fn carbonyl_bridge_main() {
     if let Some(code) = main().unwrap() {
         std::process::exit(code)
     }
-}
-
-#[no_mangle]
-pub extern "C" fn carbonyl_bridge_bitmap_mode() -> bool {
-    CommandLine::parse().bitmap
 }
 
 #[no_mangle]
