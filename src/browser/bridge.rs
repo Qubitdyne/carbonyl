@@ -1,20 +1,17 @@
 use std::ffi::{CStr, CString};
 use std::io::Write;
 use std::process::{Command, Stdio};
-use std::sync::{mpsc, Mutex};
-use std::{env, io, thread};
+use std::sync::{mpsc, Mutex, OnceLock};
+use std::{env, io, mem, thread};
 
 use libc::{c_char, c_float, c_int, c_uchar, c_uint, c_void, size_t};
 
 use crate::cli::{CommandLine, CommandLineProgram, EnvVar};
 use crate::gfx::{Cast, Color, Point, Rect, Size};
 use crate::output::{RenderThread, Window};
-
-extern "C" {
-    fn carbonyl_set_device_scale_factor(dsf: c_float);
-}
 use crate::ui::navigation::NavigationAction;
 use crate::{input, utils::log};
+use libloading::{Error as LibraryError, Library};
 
 #[repr(C)]
 #[derive(Copy, Clone)]
@@ -60,6 +57,81 @@ unsafe impl Send for RendererBridge {}
 unsafe impl Sync for RendererBridge {}
 
 pub type RendererPtr = *const Mutex<RendererBridge>;
+
+type BridgeFn = unsafe extern "C" fn(c_float);
+
+struct NativeBridge {
+    set_device_scale_factor: BridgeFn,
+    set_default_zoom: BridgeFn,
+}
+
+static NATIVE_BRIDGE: OnceLock<Option<NativeBridge>> = OnceLock::new();
+
+fn native_bridge() -> Option<&'static NativeBridge> {
+    NATIVE_BRIDGE
+        .get_or_init(|| unsafe {
+            let lib = match open_process_library() {
+                Ok(lib) => lib,
+                Err(error) => {
+                    log::warning!("failed to access process symbols: {}", error);
+                    return None;
+                }
+            };
+
+            let set_device_scale_factor =
+                match lib.get::<BridgeFn>(b"carbonyl_set_device_scale_factor\0") {
+                    Ok(symbol) => *symbol,
+                    Err(error) => {
+                        log::warning!("carbonyl_set_device_scale_factor is unavailable: {}", error);
+                        return None;
+                    }
+                };
+
+            let set_default_zoom = match lib.get::<BridgeFn>(b"carbonyl_set_default_zoom\0") {
+                Ok(symbol) => *symbol,
+                Err(error) => {
+                    log::warning!("carbonyl_set_default_zoom is unavailable: {}", error);
+                    return None;
+                }
+            };
+
+            // Leak the library handle to keep the symbols valid for the process lifetime.
+            mem::forget(lib);
+
+            Some(NativeBridge {
+                set_device_scale_factor,
+                set_default_zoom,
+            })
+        })
+        .as_ref()
+}
+
+#[cfg(unix)]
+unsafe fn open_process_library() -> Result<Library, LibraryError> {
+    Ok(libloading::os::unix::Library::this().into())
+}
+
+#[cfg(windows)]
+unsafe fn open_process_library() -> Result<Library, LibraryError> {
+    libloading::os::windows::Library::this().map(Into::into)
+}
+
+#[cfg(not(any(unix, windows)))]
+unsafe fn open_process_library() -> Result<Library, LibraryError> {
+    Err(LibraryError::IncompatibleSize)
+}
+
+pub fn set_device_scale_factor(dsf: f32) {
+    if let Some(bridge) = native_bridge() {
+        unsafe { (bridge.set_device_scale_factor)(dsf) };
+    }
+}
+
+pub fn set_default_zoom(factor: f32) {
+    if let Some(bridge) = native_bridge() {
+        unsafe { (bridge.set_default_zoom)(factor) };
+    }
+}
 
 impl<T: Copy> From<CPoint> for Point<T>
 where
@@ -194,7 +266,7 @@ pub extern "C" fn carbonyl_renderer_resize(bridge: RendererPtr) {
     // Use the full terminal pixel geometry for SIXEL frames.
     let geometry = window.graphics_px;
     // Keep Chromium informed of the effective device scale factor.
-    unsafe { carbonyl_set_device_scale_factor(window.dsf) };
+    set_device_scale_factor(window.dsf);
 
     log::debug!("resizing renderer, terminal window: {:?}", window);
 
