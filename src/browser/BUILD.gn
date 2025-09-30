@@ -19,7 +19,6 @@ component("bridge") {
   ]
 
   deps = [
-    "//components/zoom",
     "//content/public/browser:browser",
   ]
 }

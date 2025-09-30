@@ -1,7 +1,9 @@
 #include "carbonyl/src/browser/bridge.h"
 
-#include "components/zoom/zoom_controller.h"
-#include "components/zoom/zoom_util.h"
+#include <cmath>
+
+#include "content/public/browser/host_zoom_map.h"
+#include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 
 namespace {
@@ -11,6 +13,13 @@ bool bitmap_mode_ = false;
 float device_scale_factor_ = 1.0f;
 float default_zoom_factor_ = 1.0f;
 content::WebContents* web_contents_ = nullptr;
+
+constexpr double kZoomFactorIncrement = 1.2;
+
+double ZoomFactorToZoomLevel(float factor) {
+    return std::log(static_cast<double>(factor)) /
+           std::log(kZoomFactorIncrement);
+}
 
 }
 
@@ -52,12 +61,20 @@ void Bridge::SetDefaultZoom(float factor) {
         return;
     }
 
-    if (auto* controller =
-            zoom::ZoomController::FromWebContents(web_contents_)) {
-        controller->SetZoomMode(zoom::ZoomController::ZoomMode::kManual);
-        controller->SetZoomLevel(
-            zoom::ZoomFactorToZoomLevel(default_zoom_factor_));
+    auto* host_zoom_map =
+        content::HostZoomMap::GetForWebContents(web_contents_);
+
+    if (!host_zoom_map) {
+        return;
     }
+
+    const double zoom_level = ZoomFactorToZoomLevel(default_zoom_factor_);
+
+    if (auto* main_frame = web_contents_->GetPrimaryMainFrame()) {
+        host_zoom_map->SetZoomLevel(main_frame->GetGlobalId(), zoom_level);
+    }
+
+    host_zoom_map->SetDefaultZoomLevel(zoom_level);
 }
 
 void Bridge::SetWebContents(content::WebContents* web_contents) {
