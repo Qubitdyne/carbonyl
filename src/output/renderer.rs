@@ -23,8 +23,9 @@ pub struct Renderer {
 }
 
 impl Renderer {
-    pub fn new() -> Renderer {
-        let painter = Painter::new();
+    pub fn new(sixel_only: bool) -> Renderer {
+        let mut painter = Painter::new();
+        painter.set_sixel_only(sixel_only);
 
         Renderer {
             nav: Navigation::new(),

@@ -15,7 +15,7 @@ index b497d690f7..9631f47967 100644
  #include "src/image/SkImage_Base.h"
  #include "src/text/GlyphRun.h"
  
-+#include "carbonyl/src/browser/bridge_state.h"
++#include "carbonyl/src/browser/bridge.h"
 +
  struct Bounder {
      SkRect  fBounds;
@@ -26,7 +26,7 @@ index b497d690f7..9631f47967 100644
                                          const SkPaint& drawingPaint) {
 -    SkASSERT(!glyphRunList.hasRSXForm());
 -    LOOP_TILER( drawGlyphRunList(canvas, &fGlyphPainter, glyphRunList, drawingPaint), nullptr )
-+    if (carbonyl::bridge::BitmapMode()) {
++    if (carbonyl::Bridge::BitmapMode()) {
 +        SkASSERT(!glyphRunList.hasRSXForm());
 +        LOOP_TILER( drawGlyphRunList(canvas, &fGlyphPainter, glyphRunList, drawingPaint), nullptr )
 +    }

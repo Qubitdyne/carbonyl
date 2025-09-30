@@ -17,16 +17,6 @@ component("bridge") {
     "bridge.cc",
     "bridge.h",
   ]
-
-  deps = [
-    ":bridge_state",
-    "//content/public/browser:browser",
-  ]
-}
-
-source_set("bridge_state") {
-  sources = [ "bridge_state.cc" ]
-  public = [ "bridge_state.h" ]
 }
 
 component("viz") {
