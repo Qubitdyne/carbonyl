@@ -1,5 +1,4 @@
 use crate::gfx::Size;
-use fast_image_resize::{images::Image, FilterType, PixelType, ResizeAlg, ResizeOptions, Resizer};
 use sixel_bytes::{self, DiffusionMethod, PixelFormat};
 
 #[derive(Clone, Debug)]
@@ -38,36 +37,15 @@ impl Frame {
         Ok(Self { bytes })
     }
 
-    pub fn from_viewport_scaled(
+    pub fn from_viewport(
         pixels: &[u8],
-        src_size: Size<u32>,
-        target: Size<u32>,
+        size: Size<u32>,
         method: DiffusionMethod,
     ) -> Result<Self, Error> {
-        if target.width == 0 || target.height == 0 || src_size.width == 0 || src_size.height == 0 {
-            return Err(Error::InvalidSize(target));
+        if size.width == 0 || size.height == 0 {
+            return Err(Error::InvalidSize(size));
         }
 
-        if src_size == target {
-            return Self::encode_rgba(pixels, src_size, method);
-        }
-
-        let src = Image::from_vec_u8(
-            src_size.width,
-            src_size.height,
-            pixels.to_vec(),
-            PixelType::U8x4,
-        )
-        .map_err(|_| Error::InvalidSize(src_size))?;
-        let mut dst = Image::new(target.width, target.height, PixelType::U8x4);
-        let mut resizer = Resizer::new();
-        let options =
-            ResizeOptions::new().resize_alg(ResizeAlg::Convolution(FilterType::CatmullRom));
-        resizer
-            .resize(&src, &mut dst, &options)
-            .map_err(|_| Error::InvalidSize(target))?;
-        let buffer = dst.into_vec();
-
-        Self::encode_rgba(&buffer, target, method)
+        Self::encode_rgba(pixels, size, method)
     }
 }
