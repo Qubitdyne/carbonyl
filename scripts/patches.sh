@@ -4,6 +4,21 @@ export CARBONYL_ROOT=$(cd $(dirname -- "$0") && dirname -- "$(pwd)")
 
 source "$CARBONYL_ROOT/scripts/env.sh"
 
+ensure_clean_git_am_state() {
+    local git_dir
+
+    git_dir=$(git rev-parse --git-dir 2>/dev/null) || return 0
+
+    if [ -d "$git_dir/rebase-apply" ] || [ -d "$git_dir/rebase-merge" ]; then
+        git am --abort >/dev/null 2>&1 || true
+        rm -rf "$git_dir/rebase-apply" "$git_dir/rebase-merge"
+    fi
+
+    if [ -f "$git_dir/applying" ]; then
+        rm -f "$git_dir/applying"
+    fi
+}
+
 cd "$CHROMIUM_SRC"
 
 chromium_upstream="92da8189788b1b373cbd3348f73d695dfdc521b6"
@@ -17,6 +32,7 @@ if [[ "$1" == "apply" ]]; then
 
     echo "Applying Chromium patches.."
     git checkout "$chromium_upstream"
+    ensure_clean_git_am_state
     git am --committer-date-is-author-date "$CARBONYL_ROOT/chromium/patches/chromium"/*
     "$CARBONYL_ROOT/scripts/restore-mtime.sh" "$chromium_upstream"
 
@@ -27,6 +43,7 @@ if [[ "$1" == "apply" ]]; then
 
     echo "Applying Skia patches.."
     git checkout "$skia_upstream"
+    ensure_clean_git_am_state
     git am --committer-date-is-author-date "$CARBONYL_ROOT/chromium/patches/skia"/*
     "$CARBONYL_ROOT/scripts/restore-mtime.sh" "$skia_upstream"
 
@@ -37,6 +54,7 @@ if [[ "$1" == "apply" ]]; then
 
     echo "Applying WebRTC patches.."
     git checkout "$webrtc_upstream"
+    ensure_clean_git_am_state
     git am --committer-date-is-author-date "$CARBONYL_ROOT/chromium/patches/webrtc"/*
     "$CARBONYL_ROOT/scripts/restore-mtime.sh" "$webrtc_upstream"
 
