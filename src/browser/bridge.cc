@@ -2,15 +2,13 @@
 
 #include <cmath>
 
+#include "carbonyl/src/browser/bridge_state.h"
 #include "content/public/browser/host_zoom_map.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 
 namespace {
 
-float dpi_ = 0.0;
-bool bitmap_mode_ = false;
-float device_scale_factor_ = 1.0f;
 float default_zoom_factor_ = 1.0f;
 content::WebContents* web_contents_ = nullptr;
 
@@ -28,15 +26,15 @@ namespace carbonyl {
 void Bridge::Resize() {}
 
 float Bridge::GetDPI() {
-    return dpi_;
+    return bridge::GetDPI();
 }
 
 float Bridge::GetDeviceScaleFactor() {
-    return device_scale_factor_;
+    return bridge::GetDeviceScaleFactor();
 }
 
 bool Bridge::BitmapMode() {
-    return bitmap_mode_;
+    return bridge::BitmapMode();
 }
 
 void Bridge::SetDeviceScaleFactor(float dsf) {
@@ -46,8 +44,8 @@ void Bridge::SetDeviceScaleFactor(float dsf) {
         dsf = 3.0f;
     }
 
-    device_scale_factor_ = dsf;
-    dpi_ = dsf;
+    bridge::SetDeviceScaleFactor(dsf);
+    bridge::SetDPI(dsf);
 }
 
 void Bridge::SetDefaultZoom(float factor) {
@@ -88,7 +86,7 @@ void Bridge::SetWebContents(content::WebContents* web_contents) {
 }
 
 void Bridge::Configure(float dpi, bool bitmap_mode) {
-    bitmap_mode_ = bitmap_mode;
+    bridge::SetBitmapMode(bitmap_mode);
     Bridge::SetDeviceScaleFactor(dpi);
 }
 
