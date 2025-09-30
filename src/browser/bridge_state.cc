@@ -4,18 +4,17 @@ namespace carbonyl {
 namespace bridge {
 namespace {
 
-bool bitmap_mode = false;
 float device_scale_factor = 1.0f;
 float dpi = 0.0f;
 
 }  // namespace
 
 bool BitmapMode() {
-  return bitmap_mode;
+  return false;
 }
 
 void SetBitmapMode(bool bitmap_mode_value) {
-  bitmap_mode = bitmap_mode_value;
+  (void)bitmap_mode_value;
 }
 
 float GetDeviceScaleFactor() {

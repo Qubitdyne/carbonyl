@@ -35,7 +35,6 @@ struct carbonyl_renderer_text {
 };
 
 void carbonyl_bridge_main();
-bool carbonyl_bridge_bitmap_mode();
 float carbonyl_bridge_get_dpi();
 
 struct carbonyl_renderer* carbonyl_renderer_create();
@@ -73,10 +72,7 @@ Renderer::Renderer(struct carbonyl_renderer* ptr): ptr_(ptr) {}
 void Renderer::Main() {
     carbonyl_bridge_main();
 
-    Bridge::Configure(
-        carbonyl_bridge_get_dpi(),
-        carbonyl_bridge_bitmap_mode()
-    );
+    Bridge::Configure(carbonyl_bridge_get_dpi());
 }
 
 Renderer* Renderer::GetCurrent() {

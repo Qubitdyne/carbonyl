@@ -23,7 +23,6 @@ pub struct Painter {
     background_code: Option<u8>,
     foreground_code: Option<u8>,
     sixel: Option<SixelState>,
-    sixel_only: bool,
 }
 
 struct SixelState {
@@ -49,7 +48,6 @@ impl Painter {
                 "truecolor" | "24bit" => true,
                 _ => false,
             },
-            sixel_only: false,
         }
     }
 
@@ -59,10 +57,6 @@ impl Painter {
 
     pub fn set_true_color(&mut self, true_color: bool) {
         self.true_color = true_color
-    }
-
-    pub fn set_sixel_only(&mut self, sixel_only: bool) {
-        self.sixel_only = sixel_only;
     }
 
     pub fn enable_sixel(&mut self, geometry: Size<u32>) {
@@ -218,14 +212,10 @@ impl Painter {
             cursor,
             quadrant,
             ref grapheme,
-            image,
+            image: _,
         } = cell;
 
-        if self.sixel_only && self.sixel_enabled() {
-            return Ok(());
-        }
-
-        if self.sixel_enabled() && grapheme.is_none() && image {
+        if self.sixel_enabled() {
             return Ok(());
         }
 
