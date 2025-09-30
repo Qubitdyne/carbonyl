@@ -90,10 +90,12 @@ index 0000000000000..a61668050cf0e
 +#include "build/build_config.h"
 +#include "components/viz/common/resources/resource_sizes.h"
 +#include "components/viz/service/display_embedder/output_device_backing.h"
++#include "carbonyl/src/browser/bridge.h"
 +#include "mojo/public/cpp/system/platform_handle.h"
 +#include "services/viz/privileged/mojom/compositing/layered_window_updater.mojom.h"
 +#include "skia/ext/platform_canvas.h"
 +#include "third_party/skia/include/core/SkCanvas.h"
++#include "ui/gfx/geometry/size_conversions.h"
 +#include "ui/gfx/skia_util.h"
 +
 +#if BUILDFLAG(IS_WIN)
@@ -116,10 +118,13 @@ index 0000000000000..a61668050cf0e
 +  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
 +  DCHECK(!in_paint_);
 +
-+  if (viewport_pixel_size_ == viewport_pixel_size)
++  auto dsf = carbonyl::Bridge::GetDeviceScaleFactor();
++  gfx::Size physical_size = gfx::ScaleToCeiledSize(viewport_pixel_size, dsf);
++
++  if (viewport_pixel_size_ == physical_size)
 +    return;
 +
-+  viewport_pixel_size_ = viewport_pixel_size;
++  viewport_pixel_size_ = physical_size;
 +  ResizeDelegated();
 +}
 +
@@ -774,6 +779,7 @@ index a166a08f6ea15..091bde787d47c 100644
  #include "build/build_config.h"
  #include "build/chromeos_buildflags.h"
 -#include "carbonyl/src/browser/bridge.h"
++#include "carbonyl/src/browser/bridge.h"
 +#include "carbonyl/src/browser/renderer.h"
 +#include "components/zoom/zoom_controller.h"
  #include "content/public/browser/browser_thread.h"
@@ -784,6 +790,7 @@ index a166a08f6ea15..091bde787d47c 100644
    HeadlessPrintManager::CreateForWebContents(web_contents_.get());
  #endif
 +  zoom::ZoomController::CreateForWebContents(web_contents_.get());
++  carbonyl::Bridge::SetWebContents(web_contents_.get());
    UpdatePrefsFromSystemSettings(web_contents_->GetMutableRendererPrefs());
    web_contents_->GetMutableRendererPrefs()->accept_languages =
        browser_context->options()->accept_language();

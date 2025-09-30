@@ -9,6 +9,10 @@ use libc::{c_char, c_float, c_int, c_uchar, c_uint, c_void, size_t};
 use crate::cli::{CommandLine, CommandLineProgram, EnvVar};
 use crate::gfx::{Cast, Color, Point, Rect, Size};
 use crate::output::{RenderThread, Window};
+
+extern "C" {
+    fn carbonyl_set_device_scale_factor(dsf: c_float);
+}
 use crate::ui::navigation::NavigationAction;
 use crate::{input, utils::log};
 
@@ -189,6 +193,8 @@ pub extern "C" fn carbonyl_renderer_resize(bridge: RendererPtr) {
     let cells = window.cells.clone();
     // Use the full terminal pixel geometry for SIXEL frames.
     let geometry = window.graphics_px;
+    // Keep Chromium informed of the effective device scale factor.
+    unsafe { carbonyl_set_device_scale_factor(window.dsf) };
 
     log::debug!("resizing renderer, terminal window: {:?}", window);
 
