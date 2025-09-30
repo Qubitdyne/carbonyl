@@ -23,6 +23,7 @@ pub struct Painter {
     background_code: Option<u8>,
     foreground_code: Option<u8>,
     sixel: Option<SixelState>,
+    sixel_only: bool,
 }
 
 struct SixelState {
@@ -48,6 +49,7 @@ impl Painter {
                 "truecolor" | "24bit" => true,
                 _ => false,
             },
+            sixel_only: false,
         }
     }
 
@@ -57,6 +59,10 @@ impl Painter {
 
     pub fn set_true_color(&mut self, true_color: bool) {
         self.true_color = true_color
+    }
+
+    pub fn set_sixel_only(&mut self, sixel_only: bool) {
+        self.sixel_only = sixel_only;
     }
 
     pub fn enable_sixel(&mut self, geometry: Size<u32>) {
@@ -75,7 +81,7 @@ impl Painter {
                 .unwrap_or(false);
 
             let dither = match env::var("CARBONYL_SIXEL_DITHER")
-                .unwrap_or_else(|_| "fs".into())
+                .unwrap_or_else(|_| "none".into())
                 .to_ascii_lowercase()
                 .as_str()
             {
@@ -212,10 +218,14 @@ impl Painter {
             cursor,
             quadrant,
             ref grapheme,
-            image: _,
+            image,
         } = cell;
 
-        if self.sixel_enabled() {
+        if self.sixel_only && self.sixel_enabled() {
+            return Ok(());
+        }
+
+        if self.sixel_enabled() && grapheme.is_none() && image {
             return Ok(());
         }
 
