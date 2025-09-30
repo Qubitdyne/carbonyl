@@ -17,6 +17,11 @@ component("bridge") {
     "bridge.cc",
     "bridge.h",
   ]
+
+  deps = [
+    "//components/zoom",
+    "//content/public/browser:browser",
+  ]
 }
 
 component("viz") {
