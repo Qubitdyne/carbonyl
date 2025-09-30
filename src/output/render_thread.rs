@@ -4,7 +4,7 @@ use std::{
     time::Instant,
 };
 
-use crate::{browser, cli::CommandLine};
+use crate::cli::CommandLine;
 
 use super::{FrameSync, Renderer};
 
@@ -59,8 +59,7 @@ impl RenderThread {
     fn boot(rx: Receiver<Message>) {
         let cmd = CommandLine::parse();
         let mut sync = FrameSync::new(cmd.fps);
-        let mut renderer = Renderer::new();
-        browser::set_default_zoom(cmd.zoom.max(0.01));
+        let mut renderer = Renderer::new(cmd.sixel_only);
         let mut needs_render = false;
 
         loop {

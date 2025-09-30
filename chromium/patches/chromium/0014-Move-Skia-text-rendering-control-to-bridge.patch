@@ -40,7 +40,7 @@ index b330273c16db3..297ffacf073fa 100644
  
  component("skia") {
 -  deps = []
-+  deps = [ "//carbonyl/src/browser:bridge_state" ]
++  deps = [ "//carbonyl/src/browser:bridge" ]
    sources = [
      # Chrome sources.
      "config/SkUserConfig.h",
