@@ -129,22 +129,30 @@ impl Painter {
             return false;
         }
 
-        let target = if state.geometry.width > 0 && state.geometry.height > 0 {
-            state.geometry
-        } else {
-            size
-        };
+        let expected = (state.geometry.width > 0 && state.geometry.height > 0)
+            .then_some(state.geometry);
+
+        if let Some(target) = expected {
+            if size != target {
+                log::error!(
+                    "failed to encode sixel frame: geometry mismatch (expected {:?}, actual {:?})",
+                    target,
+                    size
+                );
+                state.pending = None;
+
+                return false;
+            }
+        }
 
         log::debug!(
-            "sixel encode: src={}x{} target={}x{} dither={:?}",
+            "sixel encode: size={}x{} dither={:?}",
             size.width,
             size.height,
-            target.width,
-            target.height,
             state.dither
         );
 
-        match Frame::from_viewport_scaled(pixels, size, target, state.dither) {
+        match Frame::from_viewport(pixels, size, state.dither) {
             Ok(frame) => {
                 state.pending = Some(frame);
 
