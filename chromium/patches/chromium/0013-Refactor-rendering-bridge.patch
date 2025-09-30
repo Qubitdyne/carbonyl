@@ -774,7 +774,7 @@ diff --git a/headless/lib/browser/headless_web_contents_impl.cc b/headless/lib/b
 index a166a08f6ea15..091bde787d47c 100644
 --- a/headless/lib/browser/headless_web_contents_impl.cc
 +++ b/headless/lib/browser/headless_web_contents_impl.cc
-@@ -22,7 +22,8 @@
+@@ -22,7 +22,9 @@
  #include "base/values.h"
  #include "build/build_config.h"
  #include "build/chromeos_buildflags.h"
@@ -785,7 +785,7 @@ index a166a08f6ea15..091bde787d47c 100644
  #include "content/public/browser/browser_thread.h"
  #include "content/public/browser/child_process_termination_info.h"
  #include "content/public/browser/devtools_agent_host.h"
-@@ -335,6 +336,7 @@ HeadlessWebContentsImpl::HeadlessWebContentsImpl(
+@@ -335,6 +336,8 @@ HeadlessWebContentsImpl::HeadlessWebContentsImpl(
  #if BUILDFLAG(ENABLE_PRINTING)
    HeadlessPrintManager::CreateForWebContents(web_contents_.get());
  #endif
